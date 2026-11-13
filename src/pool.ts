@@ -1,7 +1,7 @@
 /**
  * Lane pool: every relay plus the direct connection, each with its own
  * per-model bucket. The provider counts the limit per IP and per model, so
- * lanes add up: 10 relays + direct = 11 lanes x 2 req/min = 22 req/min per model.
+ * lanes add up (e.g. 10 relays + direct = 11 lanes x 2 req/min = 22 req/min per model).
  */
 
 import { Bucket, LIMIT } from "./bucket.ts";

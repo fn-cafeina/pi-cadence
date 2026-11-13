@@ -3,8 +3,9 @@
 Free-tier models spread across relays so the per-IP rate limit adds up.
 
 The default provider allows **2 requests per minute per IP and per model**.
-Each relay is a different egress IP, so they add up: 10 relays plus your own
-connection is 11 lanes, 22 requests per minute per model.
+Your own connection is one lane; every relay adds another. Ten relays plus
+your own connection is 11 lanes, 22 rpm per model. Fewer relays means fewer
+lanes; it also works with none (2 rpm on your own connection).
 
 ## Install
 
