@@ -1,15 +1,18 @@
 /**
- * Model catalog. `/v1/models` lists three models the catalog marks
- * `available: false` (llama-3-3-70b, qwen-2-5-vl-72b, qwen-3-6-27b); the
- * endpoint answers them with a 10s delay and a redirect, so they stay out.
+ * Model catalog. Covers every chat model the endpoint offers for free; the
+ * non-chat entries in `/v1/models` (embeddings, TTS, whisper, SDXL, guard
+ * classifiers) are out of scope. llama-3-3-70b, qwen-2-5-vl-72b and
+ * qwen-3-6-27b were once excluded (10s delay + redirect); retested
+ * 2026-11-13 they answer in under a second, so they are in.
  *
  * Pi levels are off, minimal, low, medium, high, xhigh, max. The provider
  * rarely matches them, so every spec maps to a value the provider accepts; a
  * claim Pi cannot honour is left null. Verified against the live endpoint:
  *   gpt-oss-*  : low | medium | high, no 'none', no 'minimal'
  *   Qwen3.8    : none | low | medium | xhigh, 'high' rejected, xhigh is default
+ *   Qwen3.6    : none | low | high | xhigh | max, all accepted
  *   Qwen3.5-*  : none | low | medium | high
- *   Mistral    : no reasoning_effort at all
+ *   Mistral, Qwen2.5-VL, Llama: no reasoning_effort at all
  */
 
 export interface ReasoningSpec {
@@ -52,6 +55,19 @@ const QWEN38: ReasoningSpec = {
 	},
 };
 
+const QWEN36: ReasoningSpec = {
+	// Every value verified live except 'medium', assumed from the family.
+	map: {
+		off: "none",
+		minimal: "none",
+		low: "low",
+		medium: "medium",
+		high: "high",
+		xhigh: "xhigh",
+		max: "max",
+	},
+};
+
 const QWEN35: ReasoningSpec = {
 	map: {
 		off: "none",
@@ -90,6 +106,14 @@ export const MODELS: readonly ChatModel[] = [
 		reasoning: QWEN38,
 	},
 	{
+		id: "Qwen3.6-27B",
+		name: "Qwen3.6 27B",
+		contextWindow: 262_144,
+		maxTokens: 262_144,
+		vision: true,
+		reasoning: QWEN36,
+	},
+	{
 		id: "Qwen3.5-9B",
 		name: "Qwen3.5 9B",
 		contextWindow: 262_144,
@@ -111,6 +135,20 @@ export const MODELS: readonly ChatModel[] = [
 		contextWindow: 131_072,
 		maxTokens: 131_072,
 		vision: true,
+	},
+	{
+		id: "Qwen2.5-VL-72B-Instruct",
+		name: "Qwen2.5 VL 72B",
+		contextWindow: 32_768,
+		maxTokens: 32_768,
+		vision: true,
+	},
+	{
+		id: "Meta-Llama-3_3-70B-Instruct",
+		name: "Meta Llama 3.3 70B",
+		contextWindow: 131_072,
+		maxTokens: 131_072,
+		vision: false,
 	},
 ];
 
