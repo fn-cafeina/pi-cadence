@@ -10,8 +10,12 @@ lanes; it also works with none (2 rpm on your own connection).
 ## Install
 
 ```bash
-pi install ./pi-cadence        # or: pi install npm:pi-cadence
+pi install npm:pi-cadence                           # from npm (recommended)
+pi install git:github.com/fn-cafeina/pi-cadence     # from git
+pi install ./pi-cadence                             # local path
 ```
+
+`pi list` shows what is installed, `pi remove npm:pi-cadence` removes it.
 
 No API key, no `/login`. The provider shows up as `cadence` with six models.
 
