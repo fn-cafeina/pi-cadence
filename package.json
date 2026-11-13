@@ -1,0 +1,51 @@
+{
+	"name": "pi-cadence",
+	"version": "0.1.0",
+	"type": "module",
+	"description": "Pi extension that spreads free-tier model requests across relays so the per-IP rate limit adds up",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/fn-cafeina/pi-cadence.git"
+	},
+	"homepage": "https://github.com/fn-cafeina/pi-cadence#readme",
+	"bugs": {
+		"url": "https://github.com/fn-cafeina/pi-cadence/issues"
+	},
+	"keywords": [
+		"pi-package"
+	],
+	"engines": {
+		"node": ">=22.19.0"
+	},
+	"pi": {
+		"extensions": [
+			"./index.ts"
+		]
+	},
+	"exports": "./index.ts",
+	"files": [
+		"index.ts",
+		"src"
+	],
+	"scripts": {
+		"test": "node --test test/*.test.ts",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome lint .",
+		"format": "biome format ."
+	},
+	"dependencies": {
+		"undici": "8.12.3"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.6.2",
+		"@earendil-works/pi-ai": "^1.5.2",
+		"@earendil-works/pi-coding-agent": "^1.5.2",
+		"@types/node": "^26.6.6",
+		"typescript": "^5.9.3"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-ai": "*",
+		"@earendil-works/pi-coding-agent": "*"
+	}
+}
