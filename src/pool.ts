@@ -109,11 +109,6 @@ export class LanePool {
 		}
 	}
 
-	/** Give a reserved slot back after the provider rejected it as rate limited. */
-	release(laneKey: string, modelId: string): void {
-		this.bucket(laneKey, modelId).release();
-	}
-
 	private bucket(laneKey: string, modelId: string): Bucket {
 		let entry = this.state.get(laneKey);
 		if (!entry) {

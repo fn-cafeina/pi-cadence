@@ -24,11 +24,6 @@ export class Bucket {
 		return this.hits.length - 1;
 	}
 
-	/** Give back the oldest slot, for a request the provider may not have counted. */
-	release(): void {
-		this.hits.shift();
-	}
-
 	/** Milliseconds until the oldest slot frees, 0 when a slot is already free. */
 	waitMs(now: number): number {
 		this.prune(now);

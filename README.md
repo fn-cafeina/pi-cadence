@@ -73,14 +73,15 @@ exist on gpt-oss, so those models offer no `off`.
 
 ## How requests are spread
 
-Every request takes a slot from a bucket keyed by `(lane, model)`. When a lane
-fails before producing any content — a 429, a dead connection, or a stream cut
-off with no chunks — the request moves to another lane and the user sees
-nothing. Once a lane has produced content the attempt is final, since a retry
-mid-stream would duplicate text.
+Every request takes a slot from a bucket keyed by `(lane, model)` and streams
+through it. pi-cadence does not intercept the stream: every event, including
+errors, is forwarded to Pi untouched.
 
-When every lane is full, the request waits for the nearest window reset (up to
-65s) instead of returning a 429. That keeps Pi's own retry budget intact.
+A lane that has spent a slot cannot serve that model until the window resets,
+so the next request takes another lane. When every lane is full, the request
+waits for the nearest window reset (up to 65s) instead of failing. Retries are
+Pi's to make; each one simply takes the next slot, and the least-spent lanes
+come first.
 
 ## The endpoint
 
@@ -95,8 +96,8 @@ one to edit.
 - Buckets are per model, so switching models starts a fresh 22 rpm but does not
   refund the previous model's usage.
 - Compaction and subagents draw from the same buckets.
-- Two Pi windows each count the same per-IP budget from zero; the 429
-  rotation covers it, but it burns attempts.
+- Two Pi windows each count the same per-IP budget from zero; the 429s spend
+  slots until the window resets.
 
 ## Development
 

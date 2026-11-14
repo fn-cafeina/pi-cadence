@@ -10,9 +10,9 @@
 
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { LIMIT } from "./bucket.ts";
+import { ENDPOINT } from "./endpoint.ts";
 import type { LanePool } from "./pool.ts";
 import { type Dispatchers, egressIp, probe } from "./probe.ts";
-import { ENDPOINT } from "./endpoint.ts";
 import { parseRelayBlock, type Relay, relayLabel, toRelay } from "./relay.ts";
 import { loadRelays, mergeRelays, removeRelay, saveRelays } from "./store.ts";
 

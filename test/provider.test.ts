@@ -8,10 +8,10 @@ import {
 	type Model,
 	type TranscriptContext,
 } from "@earendil-works/pi-ai";
+import { ENDPOINT } from "../src/endpoint.ts";
 import { LanePool } from "../src/pool.ts";
 import { Dispatchers } from "../src/probe.ts";
-import { type ProviderDeps, streamWithRotation } from "../src/provider.ts";
-import { ENDPOINT } from "../src/endpoint.ts";
+import { type ProviderDeps, streamOnce } from "../src/provider.ts";
 
 const model = {
 	id: ENDPOINT.models[0]!.id,
@@ -64,89 +64,37 @@ function used(pool: LanePool, laneKey: string, modelId: string): number {
 	return pool.snapshot(modelId).find((row) => row.lane.key === laneKey)?.used ?? -1;
 }
 
-function failures(pool: LanePool, laneKey: string): number {
-	return pool.list().find((lane) => lane.key === laneKey)?.failures ?? -1;
-}
-
-test("rotates to another lane on a 429 before content", async () => {
-	const { deps, pool, counter } = depsFor([
-		[errorEvent("429 status code (no body)")],
-		[startEvent(), doneEvent()],
-	]);
+test("forwards every event untouched and keeps the slot", async () => {
+	const { deps, pool, counter } = depsFor([[startEvent(), textDelta(), doneEvent()]]);
 	const out = createAssistantMessageEventStream();
-	await streamWithRotation(deps, out, model, context);
-	const events = await drain(out);
-
-	assert.equal(counter.n, 2);
-	assert.ok(events.some((event) => event.type === "start"));
-	assert.ok(!events.some((event) => event.type === "error"));
-	// The 429 lane gave its slot back and was marked failing; the winner kept its slot.
-	assert.equal(failures(pool, "direct"), 1);
-	assert.equal(used(pool, "direct", model.id), 0);
-	assert.equal(failures(pool, "1.1.1.1:1"), 0);
-	assert.equal(used(pool, "1.1.1.1:1", model.id), 1);
-});
-
-test("rotates on a transport failure before content and releases the slot", async () => {
-	const { deps, pool, counter } = depsFor([
-		[errorEvent("fetch failed: connect ECONNREFUSED 1.1.1.1:6014")],
-		[startEvent(), doneEvent()],
-	]);
-	const out = createAssistantMessageEventStream();
-	await streamWithRotation(deps, out, model, context);
-	const events = await drain(out);
-
-	assert.equal(counter.n, 2);
-	assert.ok(events.some((event) => event.type === "start"));
-	assert.equal(used(pool, "direct", model.id), 0);
-	assert.equal(failures(pool, "direct"), 1);
-});
-
-test("rotates on a stream cut before its first chunk", async () => {
-	const { deps, pool, counter } = depsFor([
-		[startEvent(), errorEvent("Stream ended without finish_reason")],
-		[startEvent(), textDelta(), doneEvent()],
-	]);
-	const out = createAssistantMessageEventStream();
-	await streamWithRotation(deps, out, model, context);
-	const events = await drain(out);
-
-	assert.equal(counter.n, 2);
-	assert.equal(events.length, 3);
-	assert.equal(events[0]!.type, "start");
-	assert.equal(events[1]!.type, "text_delta");
-	assert.equal(events[2]!.type, "done");
-	// The dead lane gave its slot back and was marked failing; the winner kept its slot.
-	assert.equal(used(pool, "direct", model.id), 0);
-	assert.equal(failures(pool, "direct"), 1);
-	assert.equal(used(pool, "1.1.1.1:1", model.id), 1);
-});
-
-test("does not rotate once real content has been emitted", async () => {
-	const { deps, counter } = depsFor([[startEvent(), textDelta(), errorEvent("socket closed")]]);
-	const out = createAssistantMessageEventStream();
-	await streamWithRotation(deps, out, model, context);
+	await streamOnce(deps, out, model, context);
 	const events = await drain(out);
 
 	assert.equal(counter.n, 1);
-	assert.equal(events.length, 3);
-	assert.equal(events[0]!.type, "start");
-	assert.equal(events[1]!.type, "text_delta");
-	assert.equal(events[2]!.type, "error");
+	assert.deepEqual(
+		events.map((event) => event.type),
+		["start", "text_delta", "done"],
+	);
+	assert.equal(used(pool, "direct", model.id), 1);
 });
 
-test("gives up after six attempts with the last error", async () => {
-	const failing = [errorEvent("fetch failed: connect ECONNREFUSED 1.1.1.1:6014")];
-	const { deps, counter } = depsFor([failing, failing, failing, failing, failing, failing]);
+test("forwards an error untouched, without retrying or refunding the slot", async () => {
+	const { deps, pool, counter } = depsFor([
+		[startEvent(), errorEvent("Stream ended without finish_reason")],
+	]);
 	const out = createAssistantMessageEventStream();
-	await streamWithRotation(deps, out, model, context);
+	await streamOnce(deps, out, model, context);
 	const events = await drain(out);
 
-	assert.equal(counter.n, 6);
-	assert.equal(events.length, 1);
-	const last = events[0]!;
-	assert.equal(last.type, "error");
-	if (last.type === "error") assert.match(last.error.errorMessage ?? "", /all 3 lanes failed/);
+	assert.equal(counter.n, 1);
+	assert.deepEqual(
+		events.map((event) => event.type),
+		["start", "error"],
+	);
+	// The slot stays spent for the rest of the window, so the next acquire
+	// prefers a lane that has spent less.
+	assert.equal(used(pool, "direct", model.id), 1);
+	assert.equal(used(pool, "1.1.1.1:1", model.id), 0);
 });
 
 test("reports aborted when the signal is already aborted", async () => {
@@ -154,7 +102,7 @@ test("reports aborted when the signal is already aborted", async () => {
 	const out = createAssistantMessageEventStream();
 	const controller = new AbortController();
 	controller.abort();
-	await streamWithRotation(deps, out, model, context, { signal: controller.signal });
+	await streamOnce(deps, out, model, context, { signal: controller.signal });
 	const events = await drain(out);
 
 	assert.equal(counter.n, 0);

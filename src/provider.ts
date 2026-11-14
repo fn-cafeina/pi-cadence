@@ -2,16 +2,15 @@
  * Provider registration. Service-specific data comes from `ENDPOINT`
  * in `src/endpoint.ts`; only the transport changes.
  *
- * Requests are spread over one lane per relay plus the direct connection. Each
- * lane has its own rate-limit bucket, so a 429 from one lane is retried on
- * another instead of reaching the user. Streaming is delegated to Pi's own
- * `openai-completions` implementation; only the transport changes.
+ * Each request takes a slot from a lane (one per relay plus the direct
+ * connection, each with its own rate-limit bucket) and streams through Pi's
+ * own `openai-completions` implementation with only the transport changed.
+ * Every event is forwarded untouched; errors are Pi's to handle.
  */
 
 import {
 	type Api,
 	type AssistantMessage,
-	type AssistantMessageEvent,
 	type AssistantMessageEventStream,
 	createAssistantMessageEventStream,
 	type Model,
@@ -20,15 +19,14 @@ import {
 } from "@earendil-works/pi-ai";
 import { createProvider } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { ENDPOINT } from "./endpoint.ts";
 import { type ChatModel, thinkingLevelMap } from "./models.ts";
 import type { Lane, LanePool } from "./pool.ts";
 import { type Dispatchers, describe } from "./probe.ts";
-import { ENDPOINT } from "./endpoint.ts";
 
 const PROVIDER_ID = ENDPOINT.id;
 /** Pi refuses to send a request without a key; the anonymous tier ignores it. */
 const FAKE_KEY = "unused";
-const MAX_ATTEMPTS = 6;
 
 export interface ProviderDeps {
 	pool: LanePool;
@@ -95,13 +93,11 @@ function emptyMessage(
 }
 
 /**
- * Streams one request, rotating lanes when an attempt fails without producing
- * any content. The `start` event (HTTP headers, no content) is held back so a
- * stream that dies before its first chunk never reaches the harness. Once
- * real content has been emitted the attempt is final: a mid-stream retry
- * would duplicate text.
+ * Streams one request on one lane, forwarding every event untouched. The lane
+ * keeps its slot for the rest of the window either way, so when Pi retries a
+ * failure the next acquire prefers a lane that has spent less.
  */
-export async function streamWithRotation(
+export async function streamOnce(
 	deps: ProviderDeps,
 	out: AssistantMessageEventStream,
 	model: Model<Api>,
@@ -109,107 +105,49 @@ export async function streamWithRotation(
 	options?: SimpleStreamOptions,
 ): Promise<void> {
 	const signal = options?.signal;
-	let lastError = "no relay responded";
-
-	for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-		if (signal?.aborted) {
-			out.push({
-				type: "error",
-				reason: "aborted",
-				error: emptyMessage(model, "aborted", "aborted"),
-			});
-			out.end();
-			return;
-		}
-
-		const lane = await deps.pool.acquire(model.id, signal ?? new AbortController().signal);
-		if (!lane) {
-			const lanes = deps.pool.list().length;
-			out.push({
-				type: "error",
-				reason: "error",
-				error: emptyMessage(
-					model,
-					`all ${lanes} lanes at limit; next slot >65s. /cadence add for more lanes.`,
-					"error",
-				),
-			});
-			out.end();
-			return;
-		}
-
-		const source = deps.streamSimple(model, context, {
-			...options,
-			apiKey: FAKE_KEY,
-			fetch: anonymousFetch(lane, deps.dispatchers),
+	if (signal?.aborted) {
+		out.push({
+			type: "error",
+			reason: "aborted",
+			error: emptyMessage(model, "aborted", "aborted"),
 		});
-
-		let emitted = false;
-		let retry = false;
-		let heldStart: AssistantMessageEvent | undefined;
-		for await (const event of source) {
-			if (event.type === "start") {
-				// Headers, no content: hold until a real chunk arrives so a dead
-				// stream can rotate without the harness ever seeing it.
-				heldStart = event;
-				continue;
-			}
-			if (event.type === "error") {
-				if (!emitted && !signal?.aborted) {
-					// Nothing was visible on this lane, so another lane cannot
-					// duplicate content: same rotation as the pre-headers failures.
-					deps.pool.release(lane.key, model.id);
-					deps.pool.markFailed(lane.key);
-					lastError = event.error.errorMessage || "error desconocido";
-					retry = true;
-					break;
-				}
-				// A stream that dies after content is evidence the lane is sick;
-				// an aborted one just stops. Either way the attempt is final.
-				if (!signal?.aborted) deps.pool.markFailed(lane.key);
-				if (heldStart) {
-					out.push(heldStart);
-					heldStart = undefined;
-				}
-				out.push(event);
-				out.end();
-				return;
-			}
-			if (heldStart) {
-				out.push(heldStart);
-				heldStart = undefined;
-			}
-			emitted = true;
-			out.push(event);
-		}
-
-		if (retry) continue;
-		deps.pool.markOk(lane.key);
 		out.end();
 		return;
 	}
 
-	const lanes = deps.pool.list().length;
-	out.push({
-		type: "error",
-		reason: "error",
-		error: emptyMessage(
-			model,
-			`all ${lanes} lanes failed. Last error: ${lastError}. Check relays with /cadence test.`,
-			"error",
-		),
+	const lane = await deps.pool.acquire(model.id, signal ?? new AbortController().signal);
+	if (!lane) {
+		const lanes = deps.pool.list().length;
+		out.push({
+			type: "error",
+			reason: "error",
+			error: emptyMessage(
+				model,
+				`all ${lanes} lanes at limit; next slot >65s. /cadence add for more lanes.`,
+				"error",
+			),
+		});
+		out.end();
+		return;
+	}
+
+	const source = deps.streamSimple(model, context, {
+		...options,
+		apiKey: FAKE_KEY,
+		fetch: anonymousFetch(lane, deps.dispatchers),
 	});
+	for await (const event of source) out.push(event);
 	out.end();
 }
 
-function rotate(
+function streamOnLane(
 	deps: ProviderDeps,
 	model: Model<Api>,
 	context: TranscriptContext,
 	options?: SimpleStreamOptions,
 ): AssistantMessageEventStream {
 	const out = createAssistantMessageEventStream();
-	void streamWithRotation(deps, out, model, context, options).catch((error) => {
+	void streamOnce(deps, out, model, context, options).catch((error) => {
 		out.push({
 			type: "error",
 			reason: "error",
@@ -234,10 +172,10 @@ export function registerProvider(pi: ExtensionAPI, deps: ProviderDeps): void {
 		models: ENDPOINT.models.map(catalogModel),
 		api: {
 			"openai-completions": {
-				// `stream` is required by the ProviderStreams contract. Rotation only
-				// needs the provider-neutral options, so both entry points share it.
-				stream: (model, context, options) => rotate(deps, model, context, options),
-				streamSimple: (model, context, options) => rotate(deps, model, context, options),
+				// `stream` is required by the ProviderStreams contract; both entry
+				// points share the same forwarding.
+				stream: (model, context, options) => streamOnLane(deps, model, context, options),
+				streamSimple: (model, context, options) => streamOnLane(deps, model, context, options),
 			},
 		},
 	});

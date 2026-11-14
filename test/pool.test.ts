@@ -41,23 +41,6 @@ test("buckets are per model", async () => {
 	);
 });
 
-test("release after a 429 puts the slot back", async () => {
-	const pool = new LanePool([relay("1.1.1.1", 1)]);
-	const signal = new AbortController().signal;
-	const before = pool.snapshot("m").reduce((s, r) => s + r.free, 0);
-	const lane = await pool.acquire("m", signal);
-	assert.ok(lane);
-	assert.equal(
-		pool.snapshot("m").reduce((s, r) => s + r.free, 0),
-		before - 1,
-	);
-	pool.release(lane!.key, "m");
-	assert.equal(
-		pool.snapshot("m").reduce((s, r) => s + r.free, 0),
-		before,
-	);
-});
-
 test("prefers lanes without failures", async () => {
 	const pool = new LanePool([relay("1.1.1.1", 1), relay("2.2.2.2", 2)]);
 	pool.markFailed(DIRECT_LANE);
