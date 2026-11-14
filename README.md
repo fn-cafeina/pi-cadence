@@ -82,11 +82,11 @@ mid-stream would duplicate text.
 When every lane is full, the request waits for the nearest window reset (up to
 65s) instead of returning a 429. That keeps Pi's own retry budget intact.
 
-## Providers
+## The endpoint
 
-The provider is the swappable part. The default is the OVHcloud AI Endpoints
-anonymous tier; its id, base URL, rate limit and model list live in
-`src/providers/ovh.ts`. Adding another provider means adding a data file there.
+pi-cadence talks to one fixed endpoint. Its id, base URL, rate limit and model
+list live in `src/endpoint.ts`; if the service changes, that file is the only
+one to edit.
 
 ## What this does not do
 
