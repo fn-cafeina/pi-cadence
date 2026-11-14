@@ -41,9 +41,11 @@ export class LanePool {
 	}
 
 	setRelays(relays: readonly Relay[]): void {
+		const failures = new Map(this.lanes.map((lane) => [lane.key, lane.failures]));
 		this.lanes = buildLanes(relays);
+		for (const lane of this.lanes) lane.failures = failures.get(lane.key) ?? 0;
 		for (const key of [...this.state.keys()]) {
-			if (!this.lanes.some((lane) => lane.key === key)) this.state.delete(key);
+			if (!this.lanes.some((entry) => entry.key === key)) this.state.delete(key);
 		}
 	}
 

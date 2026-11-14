@@ -87,3 +87,11 @@ test("setRelays keeps buckets for lanes that survive", async () => {
 	pool.setRelays([relay("1.1.1.1", 1)]);
 	assert.equal(pool.snapshot("m")[0]!.used, 1);
 });
+
+test("setRelays keeps the failure count for lanes that survive", () => {
+	const pool = new LanePool([relay("1.1.1.1", 1)]);
+	pool.markFailed("1.1.1.1:1");
+	pool.markFailed("1.1.1.1:1");
+	pool.setRelays([relay("1.1.1.1", 1)]);
+	assert.equal(pool.list().find((lane) => lane.key === "1.1.1.1:1")!.failures, 2);
+});
