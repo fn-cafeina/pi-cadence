@@ -11,6 +11,7 @@
 import {
 	type Api,
 	type AssistantMessage,
+	type AssistantMessageEvent,
 	type AssistantMessageEventStream,
 	createAssistantMessageEventStream,
 	type Model,
@@ -93,20 +94,12 @@ function emptyMessage(
 	};
 }
 
-export function isRateLimited(message: string): boolean {
-	return /429|rate.?limit|too many requests/i.test(message);
-}
-
-export function isRetryableTransport(message: string): boolean {
-	return /fetch failed|timeout|timed out|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket|other side closed|network|proxy/i.test(
-		message,
-	);
-}
-
 /**
- * Streams one request, rotating lanes on a rate limit or transport failure that
- * happens before any content. Once a lane has produced output the attempt is
- * final: a mid-stream retry would duplicate text.
+ * Streams one request, rotating lanes when an attempt fails without producing
+ * any content. The `start` event (HTTP headers, no content) is held back so a
+ * stream that dies before its first chunk never reaches the harness. Once
+ * real content has been emitted the attempt is final: a mid-stream retry
+ * would duplicate text.
  */
 export async function streamWithRotation(
 	deps: ProviderDeps,
@@ -153,25 +146,38 @@ export async function streamWithRotation(
 
 		let emitted = false;
 		let retry = false;
+		let heldStart: AssistantMessageEvent | undefined;
 		for await (const event of source) {
+			if (event.type === "start") {
+				// Headers, no content: hold until a real chunk arrives so a dead
+				// stream can rotate without the harness ever seeing it.
+				heldStart = event;
+				continue;
+			}
 			if (event.type === "error") {
-				const message = event.error.errorMessage ?? "";
-				const rateLimited = isRateLimited(message);
-				if (!emitted && (rateLimited || isRetryableTransport(message))) {
+				if (!emitted && !signal?.aborted) {
+					// Nothing was visible on this lane, so another lane cannot
+					// duplicate content: same rotation as the pre-headers failures.
 					deps.pool.release(lane.key, model.id);
 					deps.pool.markFailed(lane.key);
-					lastError = message || "error desconocido";
+					lastError = event.error.errorMessage || "error desconocido";
 					retry = true;
 					break;
+				}
+				// A stream that dies after content is evidence the lane is sick;
+				// an aborted one just stops. Either way the attempt is final.
+				if (!signal?.aborted) deps.pool.markFailed(lane.key);
+				if (heldStart) {
+					out.push(heldStart);
+					heldStart = undefined;
 				}
 				out.push(event);
 				out.end();
 				return;
 			}
-			if (event.type === "start") {
-				emitted = true;
-				out.push(event);
-				continue;
+			if (heldStart) {
+				out.push(heldStart);
+				heldStart = undefined;
 			}
 			emitted = true;
 			out.push(event);

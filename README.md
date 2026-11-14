@@ -74,9 +74,10 @@ exist on gpt-oss, so those models offer no `off`.
 ## How requests are spread
 
 Every request takes a slot from a bucket keyed by `(lane, model)`. When a lane
-answers 429 or fails to connect before producing any content, the request moves
-to another lane and the user sees nothing. Once a lane has produced output the
-attempt is final, since a retry mid-stream would duplicate text.
+fails before producing any content — a 429, a dead connection, or a stream cut
+off with no chunks — the request moves to another lane and the user sees
+nothing. Once a lane has produced content the attempt is final, since a retry
+mid-stream would duplicate text.
 
 When every lane is full, the request waits for the nearest window reset (up to
 65s) instead of returning a 429. That keeps Pi's own retry budget intact.
