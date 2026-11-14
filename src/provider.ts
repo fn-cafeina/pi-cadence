@@ -24,7 +24,7 @@ import type { Lane, LanePool } from "./pool.ts";
 import { type Dispatchers, describe } from "./probe.ts";
 import { ACTIVE_PROVIDER } from "./providers/ovh.ts";
 
-export const PROVIDER_ID = ACTIVE_PROVIDER.id;
+const PROVIDER_ID = ACTIVE_PROVIDER.id;
 /** Pi refuses to send a request without a key; the anonymous tier ignores it. */
 const FAKE_KEY = "unused";
 const MAX_ATTEMPTS = 6;
