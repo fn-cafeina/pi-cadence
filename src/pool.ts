@@ -24,7 +24,8 @@ interface LaneState {
 
 /**
  * Buckets live per (lane, model) because the limit is per model. Waiting is
- * capped so a dead provider cannot hang a turn forever.
+ * capped so a provider with a window longer than MAX_WAIT_MS cannot hang a
+ * turn forever.
  */
 export const MAX_WAIT_MS = 65_000;
 
