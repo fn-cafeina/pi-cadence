@@ -153,7 +153,7 @@ export async function streamWithRotation(
 				const message = event.error.errorMessage ?? "";
 				const rateLimited = isRateLimited(message);
 				if (!emitted && (rateLimited || isRetryableTransport(message))) {
-					if (rateLimited) deps.pool.release(lane.key, model.id);
+					deps.pool.release(lane.key, model.id);
 					deps.pool.markFailed(lane.key);
 					lastError = message || "error desconocido";
 					retry = true;

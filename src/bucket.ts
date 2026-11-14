@@ -24,7 +24,7 @@ export class Bucket {
 		return this.hits.length - 1;
 	}
 
-	/** Give back the oldest slot. Only for a request the provider rejected as rate limited. */
+	/** Give back the oldest slot, for a request the provider may not have counted. */
 	release(): void {
 		this.hits.shift();
 	}
