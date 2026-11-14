@@ -24,13 +24,14 @@ No API key, no `/login`. The provider shows up as `cadence` with nine models.
 ```
 /cadence              state: lanes, free quota per model
 /cadence list         saved relays, numbered
-/cadence add          paste relays, one per line
-/cadence remove       delete one
+/cadence add [relay]  add a relay, or open the editor to paste many
+/cadence remove [n]   delete one by number
 /cadence test [n]     probe one relay by number, or all of them
 ```
 
-`/cadence add` opens a multiline editor. Paste your whole proxy list, in either
-format, and it figures out each line:
+`/cadence add relay` saves one relay; with no argument it opens a multiline
+editor. Paste your whole proxy list, in either format, and it figures out each
+line:
 
 ```
 45.38.107.97:6014:user:pass
