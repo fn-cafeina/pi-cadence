@@ -94,6 +94,8 @@ anonymous tier; its id, base URL, rate limit and model list live in
 - Buckets are per model, so switching models starts a fresh 22 rpm but does not
   refund the previous model's usage.
 - Compaction and subagents draw from the same buckets.
+- Two Pi windows each count the same per-IP budget from zero; the 429
+  rotation covers it, but it burns attempts.
 
 ## Development
 
