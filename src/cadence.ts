@@ -24,7 +24,7 @@ export interface CommandDeps {
 const USAGE = [
 	"/cadence              state",
 	"/cadence list          relays",
-	"/cadence add           paste relays",
+	"/cadence add [relay]   add relay(s) or paste many",
 	"/cadence remove        remove relay",
 	"/cadence test [n]      probe relays",
 ].join("\n");
@@ -112,11 +112,18 @@ function listRelays(pool: LanePool): string {
 	return lines.join("\n");
 }
 
-async function addRelays(deps: CommandDeps, ctx: ExtensionCommandContext): Promise<void> {
-	const pasted = await ctx.ui.editor(
-		"Relays, one per line: host:port, host:port:user:pass, or http://user:pass@host:port",
-		"",
-	);
+async function addRelays(
+	deps: CommandDeps,
+	ctx: ExtensionCommandContext,
+	arg: string,
+): Promise<void> {
+	// Tokens are lines: no accepted relay form contains a space.
+	const pasted = arg
+		? arg.split(/\s+/).join("\n")
+		: await ctx.ui.editor(
+				"Relays, one per line: host:port, host:port:user:pass, or http://user:pass@host:port",
+				"",
+			);
 	if (pasted === undefined) return;
 
 	const { relays: parsed, errors } = parseRelayBlock(pasted);
@@ -274,7 +281,7 @@ export async function handleCadence(
 			ctx.ui.notify(listRelays(deps.pool), "info");
 			return;
 		case "add":
-			await addRelays(deps, ctx);
+			await addRelays(deps, ctx, rest.join(" "));
 			return;
 		case "remove":
 			await removeRelays(deps, ctx);
