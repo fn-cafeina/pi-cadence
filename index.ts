@@ -5,6 +5,7 @@
  * managed from inside Pi; nothing to format by hand.
  */
 
+import { openAICompletionsApi } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { handleCadence } from "./src/cadence.ts";
 import { LanePool } from "./src/pool.ts";
@@ -15,7 +16,11 @@ import { loadRelays } from "./src/store.ts";
 export default function (pi: ExtensionAPI) {
 	const dispatchers = new Dispatchers();
 	const pool = new LanePool(loadRelays());
-	const deps = { pool, dispatchers };
+	const deps = {
+		pool,
+		dispatchers,
+		streamSimple: openAICompletionsApi().streamSimple,
+	};
 
 	registerProvider(pi, deps);
 

@@ -17,7 +17,7 @@ import {
 	type SimpleStreamOptions,
 	type TranscriptContext,
 } from "@earendil-works/pi-ai";
-import { createProvider, openAICompletionsApi } from "@earendil-works/pi-ai/compat";
+import { createProvider } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { type ChatModel, thinkingLevelMap } from "./models.ts";
 import type { Lane, LanePool } from "./pool.ts";
@@ -32,6 +32,11 @@ const MAX_ATTEMPTS = 6;
 export interface ProviderDeps {
 	pool: LanePool;
 	dispatchers: Dispatchers;
+	streamSimple: (
+		model: Model<Api>,
+		context: TranscriptContext,
+		options?: SimpleStreamOptions,
+	) => AssistantMessageEventStream;
 }
 
 /** Strip anything that would authenticate us: the anonymous tier 403s on it. */
@@ -140,7 +145,7 @@ export async function streamWithRotation(
 			return;
 		}
 
-		const source = openAICompletionsApi().streamSimple(model, context, {
+		const source = deps.streamSimple(model, context, {
 			...options,
 			apiKey: FAKE_KEY,
 			fetch: anonymousFetch(lane, deps.dispatchers),
