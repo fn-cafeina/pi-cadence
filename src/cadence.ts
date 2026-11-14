@@ -150,7 +150,8 @@ async function addRelays(
 		.map((relay, index) => ({ relay, result: probes[index] }))
 		.filter((entry) => !entry.result.ok);
 
-	const { relays: next } = mergeRelays(existing, alive);
+	// Re-read right before the write: another Pi process may have saved meanwhile.
+	const { relays: next } = mergeRelays(loadRelays(), alive);
 	saveRelays(next);
 	deps.pool.setRelays(next);
 
@@ -202,7 +203,8 @@ async function removeRelays(
 		if (!(await ctx.ui.confirm("Remove relay", `${relayLabel(relay)}?`))) return;
 	}
 
-	const next = removeRelay(relays, relay.key);
+	// Re-read right before the write: another Pi process may have saved meanwhile.
+	const next = removeRelay(loadRelays(), relay.key);
 	saveRelays(next);
 	deps.pool.setRelays(next);
 	deps.dispatchers.drop(relay.key);
