@@ -17,7 +17,7 @@ pi install ./pi-cadence                             # local path
 
 `pi list` shows what is installed, `pi remove npm:pi-cadence` removes it.
 
-No API key, no `/login`. The provider shows up as `cadence` with six models.
+No API key, no `/login`. The provider shows up as `cadence` with nine models.
 
 ## Use
 
@@ -56,16 +56,15 @@ Then pick a model:
 
 ## Models
 
-| model                                 | thinking                | vision | context |
-| ------------------------------------- | ----------------------- | ------ | ------- |
-| `gpt-oss-20b`, `gpt-oss-120b`         | low, medium, high       | no     | 131k    |
-| `Qwen3.8-27B`                         | off, low, medium, xhigh | yes    | 262k    |
-| `Qwen3.5-9B`, `Qwen3.5-397B-A17B`     | off, low, medium, high  | yes    | 262k    |
-| `Mistral-Small-3.2-24B-Instruct-2506` | no                      | yes    | 131k    |
-
-Three models the API still lists (`llama-3-3-70b`, `qwen-2-5-vl-72b`,
-`qwen-3-6-27b`) are marked unavailable in the provider's catalog and redirect
-with a 10s delay, so they are not offered.
+| model                                 | thinking                           | vision | context |
+| ------------------------------------- | ---------------------------------- | ------ | ------- |
+| `gpt-oss-20b`, `gpt-oss-120b`         | low, medium, high                  | no     | 131k    |
+| `Qwen3.8-27B`                         | off, low, medium, xhigh            | yes    | 262k    |
+| `Qwen3.6-27B`                         | off, low, medium, high, xhigh, max | yes    | 262k    |
+| `Qwen3.5-9B`, `Qwen3.5-397B-A17B`     | off, low, medium, high             | yes    | 262k    |
+| `Mistral-Small-3.2-24B-Instruct-2506` | no                                 | yes    | 131k    |
+| `Qwen2.5-VL-72B-Instruct`             | no                                 | yes    | 32k     |
+| `Meta-Llama-3_3-70B-Instruct`         | no                                 | no     | 131k    |
 
 Thinking levels are mapped to what each model actually accepts. `high` on
 Qwen3.8 became `xhigh` because the provider rejects `high` there; `off` does not
