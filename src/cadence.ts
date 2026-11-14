@@ -25,7 +25,7 @@ const USAGE = [
 	"/cadence              state",
 	"/cadence list          relays",
 	"/cadence add [relay]   add relay(s) or paste many",
-	"/cadence remove        remove relay",
+	"/cadence remove [n]    remove relay by number",
 	"/cadence test [n]      probe relays",
 ].join("\n");
 
@@ -168,18 +168,39 @@ async function addRelays(
 	ctx.ui.notify(lines.join("\n"), dead.length > 0 || errors.length > 0 ? "warning" : "info");
 }
 
-async function removeRelays(deps: CommandDeps, ctx: ExtensionCommandContext): Promise<void> {
+async function removeRelays(
+	deps: CommandDeps,
+	ctx: ExtensionCommandContext,
+	arg: string,
+): Promise<void> {
 	const relays = loadRelays();
 	if (relays.length === 0) {
 		ctx.ui.notify("no relays to remove", "info");
 		return;
 	}
-	const labels = relays.map((relay) => relayLabel(relay));
-	const choice = await ctx.ui.select("Remove which relay?", labels);
-	if (choice === undefined) return;
-	const relay = relays[labels.indexOf(choice)];
-	if (!relay) return;
-	if (!(await ctx.ui.confirm("Remove relay", `${relayLabel(relay)}?`))) return;
+	const raw = arg.trim();
+	let relay: Relay | undefined;
+	if (raw) {
+		const listed = currentRelays(deps.pool);
+		const parsed = parseIndex(raw, listed.length);
+		if ("error" in parsed) {
+			ctx.ui.notify(parsed.error, "error");
+			return;
+		}
+		const target = listed[parsed.index - 1];
+		relay = relays.find((entry) => entry.key === target.key);
+		if (!relay) {
+			ctx.ui.notify(`no saved relay ${relayLabel(target)}`, "error");
+			return;
+		}
+	} else {
+		const labels = relays.map((entry) => relayLabel(entry));
+		const choice = await ctx.ui.select("Remove which relay?", labels);
+		if (choice === undefined) return;
+		relay = relays[labels.indexOf(choice)];
+		if (!relay) return;
+		if (!(await ctx.ui.confirm("Remove relay", `${relayLabel(relay)}?`))) return;
+	}
 
 	const next = removeRelay(relays, relay.key);
 	saveRelays(next);
@@ -284,7 +305,7 @@ export async function handleCadence(
 			await addRelays(deps, ctx, rest.join(" "));
 			return;
 		case "remove":
-			await removeRelays(deps, ctx);
+			await removeRelays(deps, ctx, rest.join(" "));
 			return;
 		case "test":
 			await testRelays(deps, ctx, rest.join(" "));
