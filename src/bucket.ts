@@ -3,10 +3,10 @@
  * IP and per model, so lanes never share a bucket when their egress IPs differ.
  */
 
-import { ACTIVE_PROVIDER } from "./providers/ovh.ts";
+import { ENDPOINT } from "./endpoint.ts";
 
-export const WINDOW_MS = ACTIVE_PROVIDER.windowMs;
-export const LIMIT = ACTIVE_PROVIDER.limit;
+export const WINDOW_MS = ENDPOINT.windowMs;
+export const LIMIT = ENDPOINT.limit;
 
 export class Bucket {
 	private hits: number[] = [];

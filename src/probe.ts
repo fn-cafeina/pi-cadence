@@ -4,7 +4,7 @@
  */
 
 import { ProxyAgent } from "undici";
-import { ACTIVE_PROVIDER } from "./providers/ovh.ts";
+import { ENDPOINT } from "./endpoint.ts";
 import { type Relay, relayUrl } from "./relay.ts";
 
 const PROBE_TIMEOUT_MS = 8_000;
@@ -66,7 +66,7 @@ async function timed<T>(
 export async function probe(relay: Relay, dispatchers: Dispatchers): Promise<Probe> {
 	try {
 		const { value, ms } = await timed(async (signal) => {
-			return await fetch(ACTIVE_PROVIDER.baseUrl + ACTIVE_PROVIDER.probePath, {
+			return await fetch(ENDPOINT.baseUrl + ENDPOINT.probePath, {
 				dispatcher: dispatchers.get(relay),
 				signal,
 			} as RequestInit);

@@ -11,13 +11,13 @@ import {
 import { LanePool } from "../src/pool.ts";
 import { Dispatchers } from "../src/probe.ts";
 import { type ProviderDeps, streamWithRotation } from "../src/provider.ts";
-import { ACTIVE_PROVIDER } from "../src/providers/ovh.ts";
+import { ENDPOINT } from "../src/endpoint.ts";
 
 const model = {
-	id: ACTIVE_PROVIDER.models[0]!.id,
-	name: ACTIVE_PROVIDER.models[0]!.name,
+	id: ENDPOINT.models[0]!.id,
+	name: ENDPOINT.models[0]!.name,
 	api: "openai-completions" as const,
-	provider: ACTIVE_PROVIDER.id,
+	provider: ENDPOINT.id,
 } as unknown as Model<Api>;
 
 const context = [] as unknown as TranscriptContext;

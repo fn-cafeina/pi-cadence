@@ -12,7 +12,7 @@ import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { LIMIT } from "./bucket.ts";
 import type { LanePool } from "./pool.ts";
 import { type Dispatchers, egressIp, probe } from "./probe.ts";
-import { ACTIVE_PROVIDER } from "./providers/ovh.ts";
+import { ENDPOINT } from "./endpoint.ts";
 import { parseRelayBlock, type Relay, relayLabel, toRelay } from "./relay.ts";
 import { loadRelays, mergeRelays, removeRelay, saveRelays } from "./store.ts";
 
@@ -70,7 +70,7 @@ export function formatStatus(pool: LanePool, modelId?: string): string {
 
 	// Free quota is identical on every model until something is spent, so only
 	// list models that actually carry usage.
-	for (const entry of ACTIVE_PROVIDER.models) {
+	for (const entry of ENDPOINT.models) {
 		if (entry.id === modelId || usage(pool, entry.id) === 0) continue;
 		lines.push(`${entry.id} ${quotaLine(pool, entry.id)}`);
 	}
@@ -94,7 +94,7 @@ function waitText(pool: LanePool, modelId: string): string {
 
 /** The model the user is actually spending, if it is one of ours. */
 function activeModelId(ctx: ExtensionCommandContext): string | undefined {
-	return ctx.model?.provider === ACTIVE_PROVIDER.id ? ctx.model.id : undefined;
+	return ctx.model?.provider === ENDPOINT.id ? ctx.model.id : undefined;
 }
 
 function listRelays(pool: LanePool): string {

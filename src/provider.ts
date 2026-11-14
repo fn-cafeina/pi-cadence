@@ -1,6 +1,6 @@
 /**
- * Provider registration. Service-specific data comes from `ACTIVE_PROVIDER`
- * in `src/providers/`; only the transport changes.
+ * Provider registration. Service-specific data comes from `ENDPOINT`
+ * in `src/endpoint.ts`; only the transport changes.
  *
  * Requests are spread over one lane per relay plus the direct connection. Each
  * lane has its own rate-limit bucket, so a 429 from one lane is retried on
@@ -23,9 +23,9 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { type ChatModel, thinkingLevelMap } from "./models.ts";
 import type { Lane, LanePool } from "./pool.ts";
 import { type Dispatchers, describe } from "./probe.ts";
-import { ACTIVE_PROVIDER } from "./providers/ovh.ts";
+import { ENDPOINT } from "./endpoint.ts";
 
-const PROVIDER_ID = ACTIVE_PROVIDER.id;
+const PROVIDER_ID = ENDPOINT.id;
 /** Pi refuses to send a request without a key; the anonymous tier ignores it. */
 const FAKE_KEY = "unused";
 const MAX_ATTEMPTS = 6;
@@ -59,7 +59,7 @@ function catalogModel(entry: ChatModel): Model<Api> {
 		name: entry.name,
 		api: "openai-completions",
 		provider: PROVIDER_ID,
-		baseUrl: ACTIVE_PROVIDER.baseUrl,
+		baseUrl: ENDPOINT.baseUrl,
 		reasoning: entry.reasoning !== undefined,
 		thinkingLevelMap: thinkingLevelMap(entry),
 		input: entry.vision ? ["text", "image"] : ["text"],
@@ -223,15 +223,15 @@ function rotate(
 export function registerProvider(pi: ExtensionAPI, deps: ProviderDeps): void {
 	const provider = createProvider({
 		id: PROVIDER_ID,
-		name: ACTIVE_PROVIDER.name,
-		baseUrl: ACTIVE_PROVIDER.baseUrl,
+		name: ENDPOINT.name,
+		baseUrl: ENDPOINT.baseUrl,
 		auth: {
 			apiKey: {
-				name: ACTIVE_PROVIDER.authName,
+				name: ENDPOINT.authName,
 				resolve: async () => ({ auth: { apiKey: FAKE_KEY }, source: "anonymous" }),
 			},
 		},
-		models: ACTIVE_PROVIDER.models.map(catalogModel),
+		models: ENDPOINT.models.map(catalogModel),
 		api: {
 			"openai-completions": {
 				// `stream` is required by the ProviderStreams contract. Rotation only
