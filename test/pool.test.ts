@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { WINDOW_MS } from "../src/bucket.ts";
 import { DIRECT_LANE, LanePool } from "../src/pool.ts";
 
 const relay = (host: string, port: number) => ({ key: `${host}:${port}`, host, port });
@@ -77,4 +78,21 @@ test("setRelays keeps the failure count for lanes that survive", () => {
 	pool.markFailed("1.1.1.1:1");
 	pool.setRelays([relay("1.1.1.1", 1)]);
 	assert.equal(pool.list().find((lane) => lane.key === "1.1.1.1:1")!.failures, 2);
+});
+
+test("acquire waits for the earliest reset, then takes the freed slot", async () => {
+	let now = 1_000_000;
+	const clock = {
+		now: () => now,
+		sleep: (ms: number) => {
+			now += ms;
+			return Promise.resolve();
+		},
+	};
+	const pool = new LanePool([relay("1.1.1.1", 1)], clock);
+	const signal = new AbortController().signal;
+	for (let i = 0; i < pool.list().length * 2; i++) await pool.acquire("m", signal);
+	const lane = await pool.acquire("m", signal);
+	assert.equal(lane!.key, DIRECT_LANE);
+	assert.equal(now, 1_000_000 + WINDOW_MS + 50);
 });

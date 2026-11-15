@@ -29,12 +29,35 @@ interface LaneState {
  */
 export const MAX_WAIT_MS = 65_000;
 
+/** Time and waiting, injectable so the wait loop is testable without real waits. */
+interface PoolClock {
+	now(): number;
+	sleep(ms: number, signal: AbortSignal): Promise<void>;
+}
+
+function realtimeSleep(ms: number, signal: AbortSignal): Promise<void> {
+	if (signal.aborted) return Promise.reject(signal.reason ?? new Error("aborted"));
+	return new Promise((resolve, reject) => {
+		const onAbort = () => {
+			clearTimeout(timer);
+			reject(signal.reason ?? new Error("aborted"));
+		};
+		const timer = setTimeout(() => {
+			signal.removeEventListener("abort", onAbort);
+			resolve();
+		}, ms);
+		signal.addEventListener("abort", onAbort, { once: true });
+	});
+}
+
 export class LanePool {
 	private lanes: Lane[];
 	private readonly state = new Map<string, LaneState>();
+	private readonly clock: PoolClock;
 
-	constructor(relays: readonly Relay[] = []) {
+	constructor(relays: readonly Relay[] = [], clock?: PoolClock) {
 		this.lanes = buildLanes(relays);
+		this.clock = clock ?? { now: Date.now, sleep: realtimeSleep };
 	}
 
 	list(): readonly Lane[] {
@@ -53,7 +76,7 @@ export class LanePool {
 	/** Free capacity on every lane for one model, and the soonest reset. */
 	snapshot(
 		modelId: string,
-		now = Date.now(),
+		now = this.clock.now(),
 	): { lane: Lane; used: number; free: number; waitMs: number }[] {
 		return this.lanes.map((lane) => {
 			const bucket = this.bucket(lane.key, modelId);
@@ -84,7 +107,7 @@ export class LanePool {
 	async acquire(modelId: string, signal: AbortSignal): Promise<Lane | undefined> {
 		for (;;) {
 			signal.throwIfAborted();
-			const now = Date.now();
+			const now = this.clock.now();
 			const candidates = this.snapshot(modelId, now);
 			const ready = candidates
 				.filter((entry) => entry.free > 0)
@@ -105,7 +128,7 @@ export class LanePool {
 
 			const soonest = Math.min(...candidates.map((entry) => entry.waitMs));
 			if (!Number.isFinite(soonest) || soonest > MAX_WAIT_MS) return undefined;
-			await this.sleep(soonest + 50, signal);
+			await this.clock.sleep(soonest + 50, signal);
 		}
 	}
 
@@ -123,20 +146,6 @@ export class LanePool {
 		return bucket;
 	}
 
-	private sleep(ms: number, signal: AbortSignal): Promise<void> {
-		if (signal.aborted) return Promise.reject(signal.reason ?? new Error("aborted"));
-		return new Promise((resolve, reject) => {
-			const onAbort = () => {
-				clearTimeout(timer);
-				reject(signal.reason ?? new Error("aborted"));
-			};
-			const timer = setTimeout(() => {
-				signal.removeEventListener("abort", onAbort);
-				resolve();
-			}, ms);
-			signal.addEventListener("abort", onAbort, { once: true });
-		});
-	}
 }
 
 function buildLanes(relays: readonly Relay[]): Lane[] {
