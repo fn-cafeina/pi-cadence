@@ -136,7 +136,14 @@ export async function streamOnce(
 		apiKey: FAKE_KEY,
 		fetch: anonymousFetch(lane, deps.dispatchers),
 	});
-	for await (const event of source) out.push(event);
+	let failed = false;
+	for await (const event of source) {
+		// A user abort is not the lane's fault; only real errors strike it.
+		if (event.type === "error" && event.reason === "error") failed = true;
+		out.push(event);
+	}
+	if (failed) deps.pool.markFailed(lane.key);
+	else deps.pool.markOk(lane.key);
 	out.end();
 }
 

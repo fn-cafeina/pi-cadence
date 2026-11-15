@@ -33,6 +33,9 @@ const errorEvent = (message: string): AssistantMessageEvent =>
 		error: { errorMessage: message },
 	}) as AssistantMessageEvent;
 
+const abortedEvent = (): AssistantMessageEvent =>
+	({ type: "error", reason: "aborted", error: {} }) as AssistantMessageEvent;
+
 const startEvent = (): AssistantMessageEvent => ({ type: "start" }) as AssistantMessageEvent;
 
 const doneEvent = (): AssistantMessageEvent =>
@@ -119,6 +122,38 @@ test("reports aborted when the signal is already aborted", async () => {
 	const last = events[0]!;
 	assert.equal(last.type, "error");
 	if (last.type === "error") assert.equal(last.error.errorMessage, "aborted");
+});
+
+test("marks the lane failed on stream errors and clears it on completion", async () => {
+	let now = 1_000_000;
+	const pool = new LanePool([], {
+		now: () => now,
+		sleep: (ms: number) => {
+			now += ms;
+			return Promise.resolve();
+		},
+	});
+	const scripts = [
+		[startEvent(), errorEvent("boom")],
+		[startEvent(), doneEvent()],
+		[startEvent(), abortedEvent()],
+	];
+	let n = 0;
+	const deps: ProviderDeps = {
+		pool,
+		dispatchers: new Dispatchers(),
+		streamSimple: () =>
+			(async function* () {
+				const events = scripts[n++] ?? [];
+				yield* events;
+			})() as unknown as AssistantMessageEventStream,
+	};
+	for (const want of [1, 0, 0]) {
+		const out = createAssistantMessageEventStream();
+		await streamOnce(deps, out, model, context);
+		await drain(out);
+		assert.equal(pool.list()[0]!.failures, want);
+	}
 });
 
 type StreamFn = (
