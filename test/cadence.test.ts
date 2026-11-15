@@ -107,3 +107,43 @@ test("add without an argument opens the editor; canceling saves nothing", async 
 	await handleCadence("add", commandCtx([]), { pool, dispatchers: new Dispatchers() });
 	assert.deepEqual(loadRelays(), []);
 });
+
+test("test flags relays that share an egress IP and clears failures", async () => {
+	saveRelays([
+		relay("1.1.1.1:1", "1.1.1.1", 1),
+		relay("2.2.2.2:2", "2.2.2.2", 2),
+		relay("3.3.3.3:3", "3.3.3.3", 3),
+	]);
+	const pool = new LanePool(loadRelays());
+	pool.markFailed("1.1.1.1:1");
+	const notes: Note[] = [];
+	mock.method(globalThis, "fetch", (input: RequestInfo | URL) => {
+		if (String(input).includes("ipify")) return Promise.resolve(new Response("5.5.5.5"));
+		return Promise.resolve(new Response("", { status: 200 }));
+	});
+	await handleCadence("test", commandCtx(notes), { pool, dispatchers: new Dispatchers() });
+	mock.restoreAll();
+
+	const [message, type] = notes[0]!;
+	assert.ok(message.includes("share egress ip 5.5.5.5"), message);
+	assert.ok(message.includes("3 of 3 up"), message);
+	assert.equal(type, "info");
+	for (const lane of pool.list()) assert.equal(lane.failures, 0);
+});
+
+test("test marks every failing relay and escalates the notification", async () => {
+	saveRelays([relay("1.1.1.1:1", "1.1.1.1", 1), relay("2.2.2.2:2", "2.2.2.2", 2)]);
+	const pool = new LanePool(loadRelays());
+	const notes: Note[] = [];
+	mock.method(globalThis, "fetch", () => Promise.resolve(new Response("", { status: 500 })));
+	await handleCadence("test", commandCtx(notes), { pool, dispatchers: new Dispatchers() });
+	mock.restoreAll();
+
+	const [message, type] = notes[0]!;
+	assert.ok(message.includes("HTTP 500"), message);
+	assert.ok(message.includes("0 of 2 up"), message);
+	assert.equal(type, "error");
+	for (const lane of pool.list()) {
+		if (lane.key !== "direct") assert.equal(lane.failures, 1);
+	}
+});
