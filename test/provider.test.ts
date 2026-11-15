@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { mock } from "node:test";
 import {
 	type Api,
 	type AssistantMessageEvent,
@@ -42,10 +42,17 @@ const textDelta = (): AssistantMessageEvent =>
 	({ type: "text_delta", contentIndex: 0, delta: "x" }) as AssistantMessageEvent;
 
 /** Deps whose streamSimple replays the scripted events, one stream per attempt. */
-function depsFor(scripts: AssistantMessageEvent[][]) {
+function depsFor(scripts: AssistantMessageEvent[][]): {
+	deps: ProviderDeps;
+	pool: LanePool;
+	counter: { n: number };
+	lastOptions: { current?: SimpleStreamOptions };
+} {
 	const pool = new LanePool([relay("1.1.1.1:1", "1.1.1.1", 1), relay("2.2.2.2:2", "2.2.2.2", 2)]);
 	const counter = { n: 0 };
-	const streamSimple: ProviderDeps["streamSimple"] = () => {
+	const lastOptions: { current?: SimpleStreamOptions } = {};
+	const streamSimple: ProviderDeps["streamSimple"] = (_model, _context, options) => {
+		lastOptions.current = options;
 		const events = scripts[counter.n] ?? [];
 		counter.n += 1;
 		return (async function* () {
@@ -53,7 +60,7 @@ function depsFor(scripts: AssistantMessageEvent[][]) {
 		})() as unknown as AssistantMessageEventStream;
 	};
 	const deps: ProviderDeps = { pool, dispatchers: new Dispatchers(), streamSimple };
-	return { deps, pool, counter };
+	return { deps, pool, counter, lastOptions };
 }
 
 async function drain(out: AssistantMessageEventStream): Promise<AssistantMessageEvent[]> {
@@ -150,4 +157,27 @@ test("labels a mid-wait abort as aborted, not timeout", async () => {
 		assert.equal(last.error.errorMessage, "aborted");
 		assert.equal(last.error.stopReason, "aborted");
 	}
+});
+
+test("strips the authorization header before the request leaves", async () => {
+	const { deps, lastOptions } = depsFor([[startEvent(), doneEvent()]]);
+	const out = createAssistantMessageEventStream();
+	await streamOnce(deps, out, model, context);
+	await drain(out);
+
+	const fetcher = (lastOptions.current ?? {}) as { fetch?: typeof fetch };
+	assert.ok(fetcher.fetch, "streamSimple must receive the custom fetch");
+	const seen: RequestInit[] = [];
+	mock.method(globalThis, "fetch", (_input: RequestInfo | URL, init?: RequestInit) => {
+		seen.push(init ?? {});
+		return Promise.resolve(new Response("", { status: 200 }));
+	});
+	await fetcher.fetch!("https://example.invalid/v1/chat", {
+		headers: { authorization: "Bearer unused" },
+	});
+	mock.restoreAll();
+
+	const headers = seen[0]!.headers;
+	assert.ok(headers instanceof Headers);
+	assert.equal(headers.has("authorization"), false);
 });
