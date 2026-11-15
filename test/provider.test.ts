@@ -156,6 +156,18 @@ test("marks the lane failed on stream errors and clears it on completion", async
 	}
 });
 
+test("applies relays reloaded from disk before acquiring a lane", async () => {
+	const { deps, pool } = depsFor([[startEvent(), doneEvent()]]);
+	deps.reloadRelays = () => [relay("9.9.9.9:9", "9.9.9.9", 9)];
+	const out = createAssistantMessageEventStream();
+	await streamOnce(deps, out, model, context);
+	await drain(out);
+	assert.deepEqual(
+		pool.list().map((lane) => lane.key),
+		["direct", "9.9.9.9:9"],
+	);
+});
+
 type StreamFn = (
 	model: Model<Api>,
 	context: TranscriptContext,

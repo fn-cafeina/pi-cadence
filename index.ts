@@ -11,7 +11,7 @@ import { handleCadence } from "./src/cadence.ts";
 import { LanePool } from "./src/pool.ts";
 import { Dispatchers } from "./src/probe.ts";
 import { registerProvider } from "./src/provider.ts";
-import { loadRelays } from "./src/store.ts";
+import { loadRelays, reloadIfChanged } from "./src/store.ts";
 
 export default function (pi: ExtensionAPI) {
 	const dispatchers = new Dispatchers();
@@ -20,6 +20,7 @@ export default function (pi: ExtensionAPI) {
 		pool,
 		dispatchers,
 		streamSimple: openAICompletionsApi().streamSimple,
+		reloadRelays: () => reloadIfChanged(),
 	};
 
 	registerProvider(pi, deps);

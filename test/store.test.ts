@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { after } from "node:test";
 
-import { loadRelays, mergeRelays, removeRelay, saveRelays } from "../src/store.ts";
+import { loadRelays, mergeRelays, reloadIfChanged, removeRelay, saveRelays } from "../src/store.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "pi-cadence-store-"));
 const path = join(dir, "cadence.json");
@@ -84,4 +84,24 @@ test("removeRelay drops the matching key", () => {
 		removeRelay(relays, "2.2.2.2:2").map((entry) => entry.key),
 		["1.1.1.1:1"],
 	);
+});
+
+test("reloadIfChanged reports changes and stays quiet when the file is untouched", () => {
+	rmSync(path, { force: true });
+	assert.equal(reloadIfChanged(path), undefined);
+	saveRelays([relay("1.1.1.1:1", "1.1.1.1", 1)], path);
+	assert.deepEqual(
+		reloadIfChanged(path)!.map((entry) => entry.key),
+		["1.1.1.1:1"],
+	);
+	assert.equal(reloadIfChanged(path), undefined);
+	saveRelays([relay("1.1.1.1:1", "1.1.1.1", 1), relay("2.2.2.2:2", "2.2.2.2", 2)], path);
+	assert.equal(reloadIfChanged(path)!.length, 2);
+});
+
+test("reloadIfChanged reports a deleted file as an empty list", () => {
+	saveRelays([relay("1.1.1.1:1", "1.1.1.1", 1)], path);
+	reloadIfChanged(path);
+	rmSync(path);
+	assert.deepEqual(reloadIfChanged(path), []);
 });

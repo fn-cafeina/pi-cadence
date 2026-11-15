@@ -23,6 +23,7 @@ import { ENDPOINT } from "./endpoint.ts";
 import { type ChatModel, thinkingLevelMap } from "./models.ts";
 import type { Lane, LanePool } from "./pool.ts";
 import { type Dispatchers, describe } from "./probe.ts";
+import type { Relay } from "./relay.ts";
 
 const PROVIDER_ID = ENDPOINT.id;
 /** Pi refuses to send a request without a key; the anonymous tier ignores it. */
@@ -36,6 +37,8 @@ export interface ProviderDeps {
 		context: TranscriptContext,
 		options?: SimpleStreamOptions,
 	) => AssistantMessageEventStream;
+	/** Relays from disk if another process changed the file, else undefined. */
+	reloadRelays?: () => Relay[] | undefined;
 }
 
 /** Strip anything that would authenticate us: the anonymous tier 403s on it. */
@@ -114,6 +117,10 @@ export async function streamOnce(
 		out.end();
 		return;
 	}
+
+	// Other Pi processes share the relay file but not this pool.
+	const fresh = deps.reloadRelays?.();
+	if (fresh) deps.pool.setRelays(fresh);
 
 	const lane = await deps.pool.acquire(model.id, signal ?? new AbortController().signal);
 	if (!lane) {

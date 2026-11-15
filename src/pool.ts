@@ -145,7 +145,6 @@ export class LanePool {
 		}
 		return bucket;
 	}
-
 }
 
 function buildLanes(relays: readonly Relay[]): Lane[] {

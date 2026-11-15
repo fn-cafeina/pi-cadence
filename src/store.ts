@@ -50,6 +50,25 @@ export function saveRelays(relays: readonly Relay[], path = relaysPath()): void 
 	renameSync(tmp, path);
 }
 
+let lastRaw = "";
+
+/**
+ * Relays from disk if the file changed since the last check, else undefined.
+ * Other Pi processes share the file but not each other's pool.
+ */
+export function reloadIfChanged(path = relaysPath()): Relay[] | undefined {
+	let raw: string;
+	try {
+		raw = readFileSync(path, "utf8");
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") raw = "";
+		else throw error;
+	}
+	if (raw === lastRaw) return undefined;
+	lastRaw = raw;
+	return loadRelays(path);
+}
+
 /** Merge parsed input into the list, dropping duplicates by host:port. */
 export function mergeRelays(
 	existing: readonly Relay[],
