@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { after } from "node:test";
@@ -19,6 +19,26 @@ test("loadRelays returns [] when the file does not exist", () => {
 test("loadRelays returns [] for a corrupt file instead of throwing", () => {
 	writeFileSync(path, "not json");
 	assert.deepEqual(loadRelays(path), []);
+});
+
+test("loadRelays drops entries without a valid host or port", () => {
+	writeFileSync(
+		path,
+		JSON.stringify({
+			version: 1,
+			relays: [{ host: "1.1.1.1", port: 1 }, { host: "2.2.2.2" }, null],
+		}),
+	);
+	assert.deepEqual(loadRelays(path).map((entry) => entry.key), ["1.1.1.1:1"]);
+});
+
+test("saveRelays moves a corrupt file aside instead of overwriting it", () => {
+	writeFileSync(path, "not json");
+	saveRelays([relay("1.1.1.1:1", "1.1.1.1", 1)], path);
+	assert.equal(readFileSync(`${path}.bak`, "utf8"), "not json");
+	assert.deepEqual(loadRelays(path), [
+		{ key: "1.1.1.1:1", host: "1.1.1.1", port: 1, user: undefined, pass: undefined },
+	]);
 });
 
 test("saveRelays and loadRelays round-trip including credentials", () => {

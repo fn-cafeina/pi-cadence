@@ -47,7 +47,8 @@ costs no rate limit.
 share one, because those two share a bucket and the real limit is lower than the
 lane count suggests.
 
-Relays are stored in `~/.pi/agent/cadence.json` with mode `0600`.
+Relays are stored in `~/.pi/agent/cadence.json` with mode `0600`. If the file
+is corrupt, the next save moves it to `cadence.json.bak` instead of overwriting it.
 
 Then pick a model:
 
