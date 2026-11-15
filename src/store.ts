@@ -78,7 +78,13 @@ export function removeRelay(relays: readonly Relay[], key: string): Relay[] {
 function isStoredRelay(entry: unknown): boolean {
 	if (typeof entry !== "object" || entry === null) return false;
 	const { host, port } = entry as { host?: unknown; port?: unknown };
-	return typeof host === "string" && typeof port === "number" && Number.isInteger(port) && port > 0 && port <= 65535;
+	return (
+		typeof host === "string" &&
+		typeof port === "number" &&
+		Number.isInteger(port) &&
+		port > 0 &&
+		port <= 65535
+	);
 }
 
 /** A corrupt list is not an empty list: move it aside so a save cannot replace it. */

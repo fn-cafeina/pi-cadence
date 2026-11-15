@@ -153,7 +153,11 @@ function streamOnLane(
 		out.push({
 			type: "error",
 			reason: aborted ? "aborted" : "error",
-			error: emptyMessage(model, aborted ? "aborted" : describe(error), aborted ? "aborted" : "error"),
+			error: emptyMessage(
+				model,
+				aborted ? "aborted" : describe(error),
+				aborted ? "aborted" : "error",
+			),
 		});
 		out.end();
 	});

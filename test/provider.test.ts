@@ -114,9 +114,11 @@ test("reports aborted when the signal is already aborted", async () => {
 	if (last.type === "error") assert.equal(last.error.errorMessage, "aborted");
 });
 
-interface StreamFn {
-	(model: Model<Api>, context: TranscriptContext, options?: SimpleStreamOptions): AssistantMessageEventStream;
-}
+type StreamFn = (
+	model: Model<Api>,
+	context: TranscriptContext,
+	options?: SimpleStreamOptions,
+) => AssistantMessageEventStream;
 
 test("labels a mid-wait abort as aborted, not timeout", async () => {
 	const { deps, pool } = depsFor([]);

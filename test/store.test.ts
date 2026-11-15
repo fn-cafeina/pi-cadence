@@ -29,7 +29,10 @@ test("loadRelays drops entries without a valid host or port", () => {
 			relays: [{ host: "1.1.1.1", port: 1 }, { host: "2.2.2.2" }, null],
 		}),
 	);
-	assert.deepEqual(loadRelays(path).map((entry) => entry.key), ["1.1.1.1:1"]);
+	assert.deepEqual(
+		loadRelays(path).map((entry) => entry.key),
+		["1.1.1.1:1"],
+	);
 });
 
 test("saveRelays moves a corrupt file aside instead of overwriting it", () => {
