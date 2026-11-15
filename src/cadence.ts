@@ -27,6 +27,7 @@ const USAGE = [
 	"/cadence add [relay]   add relay(s) or paste many",
 	"/cadence remove [n]    remove relay by number",
 	"/cadence test [n]      probe relays",
+	"/cadence help          show this help",
 ].join("\n");
 
 function currentRelays(pool: LanePool): Relay[] {

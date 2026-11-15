@@ -27,6 +27,7 @@ No API key, no `/login`. The provider shows up as `cadence` with nine models.
 /cadence add [relay]  add a relay, or open the editor to paste many
 /cadence remove [n]   delete one by number
 /cadence test [n]     probe one relay by number, or all of them
+/cadence help         show the commands
 ```
 
 `/cadence add relay` saves one relay; with no argument it opens a multiline
