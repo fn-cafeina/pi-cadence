@@ -1,6 +1,6 @@
 {
 	"name": "pi-cadence",
-	"version": "0.1.5",
+	"version": "0.1.6",
 	"type": "module",
 	"description": "Pi extension that spreads free-tier model requests across relays so the per-IP rate limit adds up",
 	"license": "MIT",
