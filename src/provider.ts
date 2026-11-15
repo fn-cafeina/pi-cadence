@@ -148,10 +148,12 @@ function streamOnLane(
 ): AssistantMessageEventStream {
 	const out = createAssistantMessageEventStream();
 	void streamOnce(deps, out, model, context, options).catch((error) => {
+		// A user abort surfaces as an AbortError, which describe() would call "timeout".
+		const aborted = options?.signal?.aborted === true;
 		out.push({
 			type: "error",
-			reason: "error",
-			error: emptyMessage(model, describe(error), "error"),
+			reason: aborted ? "aborted" : "error",
+			error: emptyMessage(model, aborted ? "aborted" : describe(error), aborted ? "aborted" : "error"),
 		});
 		out.end();
 	});

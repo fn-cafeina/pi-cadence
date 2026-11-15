@@ -6,12 +6,14 @@ import {
 	type AssistantMessageEventStream,
 	createAssistantMessageEventStream,
 	type Model,
+	type SimpleStreamOptions,
 	type TranscriptContext,
 } from "@earendil-works/pi-ai";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { ENDPOINT } from "../src/endpoint.ts";
 import { LanePool } from "../src/pool.ts";
 import { Dispatchers } from "../src/probe.ts";
-import { type ProviderDeps, streamOnce } from "../src/provider.ts";
+import { type ProviderDeps, registerProvider, streamOnce } from "../src/provider.ts";
 
 const model = {
 	id: ENDPOINT.models[0]!.id,
@@ -110,4 +112,40 @@ test("reports aborted when the signal is already aborted", async () => {
 	const last = events[0]!;
 	assert.equal(last.type, "error");
 	if (last.type === "error") assert.equal(last.error.errorMessage, "aborted");
+});
+
+interface StreamFn {
+	(model: Model<Api>, context: TranscriptContext, options?: SimpleStreamOptions): AssistantMessageEventStream;
+}
+
+test("labels a mid-wait abort as aborted, not timeout", async () => {
+	const { deps, pool } = depsFor([]);
+	// Fill every lane so the stream parks in the wait loop.
+	for (let i = 0; i < pool.list().length * 2; i++) {
+		await pool.acquire(model.id, new AbortController().signal);
+	}
+
+	let streamSimple: StreamFn | undefined;
+	registerProvider(
+		{
+			registerProvider: (provider: { streamSimple: StreamFn }) => {
+				streamSimple = provider.streamSimple;
+			},
+		} as unknown as ExtensionAPI,
+		deps,
+	);
+	assert.ok(streamSimple);
+
+	const controller = new AbortController();
+	const out = streamSimple(model, context, { signal: controller.signal });
+	await new Promise((resolve) => setTimeout(resolve, 20));
+	controller.abort();
+
+	const events = await drain(out);
+	const last = events[events.length - 1]!;
+	assert.equal(last.type, "error");
+	if (last.type === "error") {
+		assert.equal(last.error.errorMessage, "aborted");
+		assert.equal(last.error.stopReason, "aborted");
+	}
 });
