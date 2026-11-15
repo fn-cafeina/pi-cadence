@@ -149,6 +149,8 @@ async function addRelays(
 	const dead = added
 		.map((relay, index) => ({ relay, result: probes[index] }))
 		.filter((entry) => !entry.result.ok);
+	// A dead relay never gets a lane, so its probe-only dispatcher goes now.
+	for (const { relay } of dead) deps.dispatchers.drop(relay.key);
 
 	// Re-read right before the write: another Pi process may have saved meanwhile.
 	const { relays: next } = mergeRelays(loadRelays(), alive);
