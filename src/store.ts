@@ -99,6 +99,7 @@ function isStoredRelay(entry: unknown): boolean {
 	const { host, port } = entry as { host?: unknown; port?: unknown };
 	return (
 		typeof host === "string" &&
+		host.trim() !== "" &&
 		typeof port === "number" &&
 		Number.isInteger(port) &&
 		port > 0 &&

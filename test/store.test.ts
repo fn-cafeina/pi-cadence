@@ -26,7 +26,7 @@ test("loadRelays drops entries without a valid host or port", () => {
 		path,
 		JSON.stringify({
 			version: 1,
-			relays: [{ host: "1.1.1.1", port: 1 }, { host: "2.2.2.2" }, null],
+			relays: [{ host: "1.1.1.1", port: 1 }, { host: "", port: 443 }, { host: "2.2.2.2" }, null],
 		}),
 	);
 	assert.deepEqual(
