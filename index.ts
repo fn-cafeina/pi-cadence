@@ -27,7 +27,10 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("cadence", {
 		description: "Relays: status, list, add, remove, test",
 		getArgumentCompletions: (prefix: string) => {
-			const items = ["list", "add", "remove", "test", "help"].map((value) => ({ value, label: value }));
+			const items = ["list", "add", "remove", "test", "help"].map((value) => ({
+				value,
+				label: value,
+			}));
 			const filtered = items.filter((item) => item.value.startsWith(prefix));
 			return filtered.length > 0 ? filtered : null;
 		},
