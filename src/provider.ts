@@ -21,7 +21,7 @@ import { createProvider } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { ENDPOINT } from "./endpoint.ts";
 import { type ChatModel, thinkingLevelMap } from "./models.ts";
-import type { Lane, LanePool } from "./pool.ts";
+import { type Lane, type LanePool, MAX_WAIT_MS } from "./pool.ts";
 import { type Dispatchers, describe } from "./probe.ts";
 import type { Relay } from "./relay.ts";
 
@@ -130,7 +130,7 @@ export async function streamOnce(
 			reason: "error",
 			error: emptyMessage(
 				model,
-				`all ${lanes} lanes at limit; next slot >65s. /cadence add for more lanes.`,
+				`all ${lanes} lanes at limit; next slot >${MAX_WAIT_MS / 1000}s. /cadence add for more lanes.`,
 				"error",
 			),
 		});
