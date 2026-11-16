@@ -14,7 +14,7 @@ import { ENDPOINT } from "./endpoint.ts";
 import type { LanePool } from "./pool.ts";
 import { type Dispatchers, egressIp, probe } from "./probe.ts";
 import { parseRelayBlock, type Relay, relayLabel, toRelay } from "./relay.ts";
-import { loadRelays, mergeRelays, removeRelay, saveRelays } from "./store.ts";
+import { loadRelays, mergeRelays, removeRelay, updateRelays } from "./store.ts";
 
 export interface CommandDeps {
 	pool: LanePool;
@@ -155,9 +155,9 @@ async function addRelays(
 	// A dead relay never gets a lane, so its probe-only dispatcher goes now.
 	for (const { relay } of dead) deps.dispatchers.drop(relay.key);
 
-	// Re-read right before the write: another Pi process may have saved meanwhile.
-	const { relays: next } = mergeRelays(loadRelays(), alive);
-	saveRelays(next);
+	// The re-read and the write are back to back, so a concurrent save from
+	// another process cannot slip between them.
+	const next = updateRelays((current) => mergeRelays(current, alive).relays);
 	deps.pool.setRelays(next);
 
 	const summary = [
@@ -208,9 +208,9 @@ async function removeRelays(
 		if (!(await ctx.ui.confirm("Remove relay", `${relayLabel(relay)}?`))) return;
 	}
 
-	// Re-read right before the write: another Pi process may have saved meanwhile.
-	const next = removeRelay(loadRelays(), relay.key);
-	saveRelays(next);
+	// The re-read and the write are back to back, so a concurrent save from
+	// another process cannot slip between them.
+	const next = updateRelays((current) => removeRelay(current, relay.key));
 	deps.pool.setRelays(next);
 	deps.dispatchers.drop(relay.key);
 	ctx.ui.notify(`removed ${relayLabel(relay)}\n${capacityLine(deps.pool)}`, "info");

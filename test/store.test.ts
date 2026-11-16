@@ -4,7 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { after } from "node:test";
 
-import { loadRelays, mergeRelays, reloadIfChanged, removeRelay, saveRelays } from "../src/store.ts";
+import {
+	loadRelays,
+	mergeRelays,
+	reloadIfChanged,
+	removeRelay,
+	saveRelays,
+	updateRelays,
+} from "../src/store.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "pi-cadence-store-"));
 const path = join(dir, "cadence.json");
@@ -59,6 +66,27 @@ test("saveRelays and loadRelays round-trip including credentials", () => {
 test("saveRelays writes the file with mode 0600", () => {
 	saveRelays([relay("1.1.1.1:1", "1.1.1.1", 1)], path);
 	assert.equal(statSync(path).mode & 0o777, 0o600);
+});
+
+test("updateRelays sees what another process saved just before", () => {
+	// Process B saves between process A's read and write; the transform runs
+	// after the re-read, so B's relay survives A's add.
+	rmSync(path, { force: true });
+	saveRelays([relay("2.2.2.2:2", "2.2.2.2", 2)], path);
+	updateRelays((current) => [...current, relay("1.1.1.1:1", "1.1.1.1", 1)], path);
+	assert.deepEqual(
+		loadRelays(path).map((entry) => entry.key),
+		["2.2.2.2:2", "1.1.1.1:1"],
+	);
+});
+
+test("updateRelays removes without resurrecting", () => {
+	saveRelays([relay("1.1.1.1:1", "1.1.1.1", 1), relay("2.2.2.2:2", "2.2.2.2", 2)], path);
+	updateRelays((current) => current.filter((entry) => entry.key !== "1.1.1.1:1"), path);
+	assert.deepEqual(
+		loadRelays(path).map((entry) => entry.key),
+		["2.2.2.2:2"],
+	);
 });
 
 test("mergeRelays dedupes by host:port", () => {

@@ -36,6 +36,18 @@ export function loadRelays(path = relaysPath()): Relay[] {
 	}
 }
 
+/** Re-read, transform and write back to back, so a concurrent save from
+ *  another process cannot land between the read and the write. Returns the
+ *  list that ended up on disk. */
+export function updateRelays(
+	transform: (current: Relay[]) => Relay[],
+	path = relaysPath(),
+): Relay[] {
+	const next = transform(loadRelays(path));
+	saveRelays(next, path);
+	return next;
+}
+
 export function saveRelays(relays: readonly Relay[], path = relaysPath()): void {
 	const dir = dirname(path);
 	mkdirSync(dir, { recursive: true, mode: 0o700 });
