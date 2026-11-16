@@ -11,6 +11,15 @@ test("parses the webshare host:port:user:pass form", () => {
 	});
 });
 
+test("keeps colons in the password of the host:port:user:pass form", () => {
+	assert.deepEqual(parseRelayLine("1.1.1.1:80:user:secret:x"), {
+		host: "1.1.1.1",
+		port: 80,
+		user: "user",
+		pass: "secret:x",
+	});
+});
+
 test("parses the url form with credentials", () => {
 	assert.deepEqual(parseRelayLine("http://user1:pass1@45.38.107.97:6014"), {
 		host: "45.38.107.97",

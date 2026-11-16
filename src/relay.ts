@@ -1,7 +1,7 @@
 /**
  * Relay parsing. One relay per line, host first. Accepted forms:
  *
- *   host:port:user:pass      Webshare panel export
+ *   host:port:user:pass      Webshare panel export; pass may contain colons
  *   http://user:pass@host:port
  *   host:port                no auth
  */
@@ -51,10 +51,15 @@ export function parseRelayLine(input: string): RelayInput | null {
 	}
 
 	const parts = line.split(":");
-	if (parts.length === 4) {
-		const [host, port, user, pass] = parts;
-		if (!host) throw new Error(`empty host in "${line}"`);
-		return { host, port: parsePort(port, line), user, pass };
+	if (parts.length >= 4) {
+		if (!parts[0]) throw new Error(`empty host in "${line}"`);
+		// The password may contain colons, so everything after the user is pass.
+		return {
+			host: parts[0],
+			port: parsePort(parts[1], line),
+			user: parts[2],
+			pass: parts.slice(3).join(":"),
+		};
 	}
 	if (parts.length === 2) {
 		const [host, port] = parts;
