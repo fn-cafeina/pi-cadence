@@ -19,6 +19,8 @@ import { loadRelays, mergeRelays, removeRelay, saveRelays } from "./store.ts";
 export interface CommandDeps {
 	pool: LanePool;
 	dispatchers: Dispatchers;
+	/** Relays from disk if another process changed the file, else undefined. */
+	reloadRelays?: () => Relay[] | undefined;
 }
 
 const USAGE = [
@@ -295,6 +297,10 @@ export async function handleCadence(
 	ctx: ExtensionCommandContext,
 	deps: CommandDeps,
 ): Promise<void> {
+	// Another Pi process may have changed the file since this one last read it.
+	const fresh = deps.reloadRelays?.();
+	if (fresh) deps.pool.setRelays(fresh);
+
 	const text = args.trim();
 	if (!text) {
 		ctx.ui.notify(formatStatus(deps.pool, activeModelId(ctx)), "info");

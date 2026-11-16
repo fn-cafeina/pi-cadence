@@ -147,3 +147,15 @@ test("test marks every failing relay and escalates the notification", async () =
 		if (lane.key !== "direct") assert.equal(lane.failures, 1);
 	}
 });
+
+test("commands pick up relays another process added to the file", async () => {
+	saveRelays([]);
+	const pool = new LanePool([]);
+	const deps = { pool, dispatchers: new Dispatchers(), reloadRelays: () => loadRelays() };
+	saveRelays([relay("1.1.1.1:1", "1.1.1.1", 1)]);
+	await handleCadence("list", commandCtx([]), deps);
+	assert.deepEqual(
+		pool.list().map((lane) => lane.key),
+		["direct", "1.1.1.1:1"],
+	);
+});
