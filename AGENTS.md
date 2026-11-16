@@ -24,7 +24,7 @@ Run all four before committing. Requires Node >= 22.19 (type stripping without a
 - `src/relay.ts` — relay parsing/formatting (`host:port`, `host:port:user:pass`, `http://user:pass@host:port`).
 - `src/probe.ts` — relay probing (no rate-limit cost), egress IP lookup, and the `Dispatchers` (cached undici `ProxyAgent` per relay).
 - `src/store.ts` — persists relays to `~/.pi/agent/cadence.json`, mode 0600.
-- `src/cadence.ts` — the `/cadence` command group (status, list, add, remove, test).
+- `src/cadence.ts` — the `/cadence` command group (status, list, add, remove, test, help).
 - `test/` — unit tests, no network.
 
 ## Facts that matter
