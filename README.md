@@ -44,9 +44,9 @@ Each relay is probed against the provider before it is saved. Dead ones are
 reported and dropped, so a broken relay never silently joins the pool. Probing
 costs no rate limit.
 
-`/cadence test` also shows each relay's egress IP and warns when two relays
-share one, because those two share a bucket and the real limit is lower than the
-lane count suggests.
+`/cadence test` warns when two relays share one egress IP, printing the shared
+IP, because those two share a bucket and the real limit is lower than the lane
+count suggests.
 
 Relays are stored in `~/.pi/agent/cadence.json` with mode `0600`. If the file
 is corrupt, the next save moves it to `cadence.json.bak` instead of overwriting it.
@@ -87,9 +87,9 @@ come first.
 
 ## The endpoint
 
-pi-cadence talks to one fixed endpoint. Its id, base URL, rate limit and model
-list live in `src/endpoint.ts`; if the service changes, that file is the only
-one to edit.
+pi-cadence talks to one fixed endpoint. Its id, base URL and rate limit live in
+`src/endpoint.ts`, the model catalog in `src/models.ts`; if the service changes,
+those are the only files to edit.
 
 ## What this does not do
 
